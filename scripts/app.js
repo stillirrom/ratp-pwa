@@ -52,8 +52,33 @@
     };
 
     app.loadLocationList = function() {
-        console.log("Starting to load locationList from localStorage.");
+        console.log("Starting to load locationList from indexedDB.");
         let locations = localStorage.getItem('locationList');
+        var request = window.indexedDB.open('USER_DB', 1);
+        var db;
+        request.onsuccess = function(event) {
+            console.log('[onsuccess]', request.result);
+            db = event.target.result;
+            // create transaction from database
+            var transaction = db.transaction('userPreferences', 'readwrite');
+            // add success event handleer for transaction
+            // you should also add onerror, onabort event handlers
+            transaction.onsuccess = function(event) {
+                console.log('[Transaction] ALL DONE!');
+            };
+            var userPreferencesStore = transaction.objectStore('userPreferences');
+            var allRecords = userPreferencesStore.getAll();
+            allRecords.onsuccess = function() {
+                locations = Array.from(allRecords.result);
+            };
+        };
+        request.onerror = function(event) {
+            console.log('[onerror]', request.error);
+        };
+        request.onupgradeneeded = function(event) {
+            var db = event.target.result;
+            db.createObjectStore('userPreferences', { keyPath: 'key' });
+        };
         if (locations) {
             console.log("There are locations ", locations, " in localStorage.");
             try {
@@ -87,9 +112,27 @@
     }
 
     app.saveLocationList = function(locations) {
-        console.log("Starting to save ", locations, " into localStorage.");
+        console.log("Starting to save ", locations, " into indexedDB.");
         const data = JSON.stringify(locations);
         localStorage.setItem('locationList', data);
+        var request = window.indexedDB.open('USER_DB', 1);
+        var db;
+        request.onsuccess = function(event) {
+            console.log('[onsuccess]', request.result);
+            db = event.target.result;
+            // create transaction from database
+            var transaction = db.transaction('userPreferences', 'readwrite');
+            // add success event handleer for transaction
+            // you should also add onerror, onabort event handlers
+            transaction.onsuccess = function(event) {
+                console.log('[Transaction] ALL DONE!');
+            };
+            var userPreferencesStore = transaction.objectStore('userPreferences');
+            Object.keys(locations)
+                .forEach(function(key) {
+                    var db_op_req = userPreferencesStore.put(locations[key]); // IDBRequest
+                });
+        };
     }
 
     app.updateSchedules = function() {
